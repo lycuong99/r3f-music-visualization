@@ -13,7 +13,7 @@ import { createNoise2D } from "simplex-noise";
 import * as THREE from "three";
 import { OrbitControls } from "@react-three/drei";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from "meshline";
-import { Vector3 } from "three";
+import { DoubleSide, Vector3 } from "three";
 
 extend({ MeshLine, MeshLineMaterial });
 const roundedSquareWave = (t, delta, a, f) => {
@@ -58,7 +58,7 @@ const Line = ({ points, width, color, order }) => {
     lineRef.current.setPoints(lines);
   });
   return (
-    <mesh raycast={MeshLineRaycast}>
+    <mesh raycast={MeshLineRaycast} castShadow={true}>
       <meshLine attach="geometry" ref={lineRef} />
       <meshLineMaterial
         attach="material"
@@ -80,7 +80,7 @@ const Line = ({ points, width, color, order }) => {
 
 const Lines = () => {
   const { analyserRef, dataArray, bufferLength, update } = useContext(MusicVisualizerContext);
-
+  const color = "#F7A76C";
   useFrame(() => {
     update();
     // console.log(dataArray);
@@ -88,14 +88,14 @@ const Lines = () => {
 
   return (
     <>
-      <Line order={0} width={0.5} color={"orange"} />
-      <Line order={1} width={0.5} color={"orange"} />
-      <Line order={2} width={0.5} color={"orange"} />
-      <Line order={3} width={0.5} color={"orange"} />
-      <Line order={4} width={0.5} color={"orange"} />
-      <Line order={5} width={0.5} color={"orange"} />
-      <Line order={6} width={0.5} color={"orange"} />
-      <Line order={7} width={0.5} color={"orange"} />
+      <Line order={0} width={1} color={color} />
+      <Line order={1} width={1} color={color} />
+      <Line order={2} width={1} color={color} />
+      <Line order={3} width={1} color={color} />
+      <Line order={4} width={1} color={color} />
+      <Line order={5} width={1} color={color} />
+      <Line order={6} width={1} color={color} />
+      <Line order={7} width={1} color={color} />
     </>
   );
 };
@@ -106,6 +106,7 @@ const MusicVisualizer = () => {
   // let audio = null;
   let audioRef = useRef();
   let analyserRef = useRef();
+  const [isStart, setStart] = useState(false);
 
   let [analyser, setAnaLyser] = useState(null);
 
@@ -148,7 +149,10 @@ const MusicVisualizer = () => {
   });
 
   const startAudio = () => {
-    if (audioRef.current) audioRef.current.play();
+    if (audioRef.current) {
+      setStart(true);
+      setTimeout(() => audioRef.current.play(), 100);
+    }
   };
 
   const update = () => {
@@ -165,6 +169,7 @@ const MusicVisualizer = () => {
   const pauseAudio = () => {
     let audio = audioRef.current;
     audio.pause();
+    setStart(false);
   };
 
   return (
@@ -175,16 +180,31 @@ const MusicVisualizer = () => {
         <button onClick={startAudio}>START</button>
         <button onClick={pauseAudio}>PAUSE</button>
         {/* <audio ref={audioRef} /> */}
-        <Canvas style={{ heigh: "100vh", width: "100vw" }}>
-          <color attach={"background"} args={["#f2f2f2"]} />
-          <ambientLight intensity={0.3} />
-          <Lines />
+        {isStart && (
+          <Canvas
+            style={{ heigh: "100vh", width: "100vw" }}
+            camera={{ position: new Vector3(40, 10, 100) }}
+          >
+            <color attach={"background"} args={["#B8E8FC"]} />
+            <ambientLight intensity={0.3} />
+            <Lines />
 
-          <OrbitControls />
-          <axesHelper />
-
-          <gridHelper args={[200, 20]} />
-        </Canvas>
+            <OrbitControls />
+            <axesHelper />
+            <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow={true}>
+              <planeBufferGeometry attach={"geometry"} args={[200, 200, 50, 50]} />
+              <meshLambertMaterial
+                // transparent
+                attach="material"
+                color="#C8FFD4"
+                wireframe={false}
+                side={DoubleSide}
+              />
+            </mesh>
+            <spotLight position={[10, 300, 100]} castShadow angle={0.3}/>
+            <gridHelper args={[200, 20]} />
+          </Canvas>
+        )}
       </MusicVisualizerContext.Provider>
     </>
   );

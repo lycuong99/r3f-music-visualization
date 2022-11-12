@@ -1,19 +1,12 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, extend, useFrame, useThree } from "@react-three/fiber";
-import { createNoise2D } from "simplex-noise";
+import { createNoise2D, createNoise3D } from "simplex-noise";
 
 import * as THREE from "three";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera, Stars } from "@react-three/drei";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from "meshline";
 import { DoubleSide, Vector3 } from "three";
+import { Button } from "@mui/material";
 
 extend({ MeshLine, MeshLineMaterial });
 const roundedSquareWave = (t, delta, a, f) => {
@@ -31,25 +24,24 @@ const Line = ({ points, width, color, order }) => {
   const lineRef = useRef();
 
   const noise2D = createNoise2D();
-
+  const noise3D = createNoise3D();
   useFrame(({ clock }) => {
     let lines = [];
     let data = datas[order];
     let z = -order * 5;
 
-    for (let i = 0; i < bufferLength; i++) {
+    for (let i = -bufferLength + 1; i < bufferLength; i++) {
       let x = i;
-      let y = Math.abs(
-        roundedSquareWave(clock.elapsedTime * (z + 1), 0.1, dataArray[i] / 10, 1 / 60)
-      );
-
+      let index = Math.abs(i);
+      let y = Math.abs(roundedSquareWave(clock.elapsedTime * (z + 1), 0.1, dataArray[index] / 5, 1 / 60));
+      // let y2 = noise2D((x * 1) / 4, ((1 / 4) * dataArray[index]) / 2) * 10;
       let p = new THREE.Vector3(x, y, z);
       lines.push(p);
     }
 
     lines = [
-      new THREE.Vector3(-2, 0, z),
-      new THREE.Vector3(-1, 0, z),
+      new THREE.Vector3(-bufferLength - 2, 0, z),
+      new THREE.Vector3(-bufferLength - 1, 0, z),
       ...lines,
       new THREE.Vector3(bufferLength, 0, z),
       new THREE.Vector3(bufferLength + 1, 0, z),
@@ -99,24 +91,45 @@ const Lines = () => {
     </>
   );
 };
+function Zoom() {
+  // This will *not* re-create a new audio source, suspense is always cached,
+  // so this will just access (or create and then cache) the source according to the url
+  const { dataArray } = useContext(MusicVisualizerContext);
+  return useFrame((state) => {
+    // Set the cameras field of view according to the frequency average
+    let avg = dataArray.reduce((prev, cur) => prev + cur / dataArray.length, 0);
+    state.camera.fov = 25 - avg / 15;
+    state.camera.updateProjectionMatrix();
+  });
+}
 
 export const MusicVisualizerContext = createContext(null);
 
 const MusicVisualizer = () => {
   // let audio = null;
   let audioRef = useRef();
+  let audioRef1 = useRef();
   let analyserRef = useRef();
   const [isStart, setStart] = useState(false);
 
   let [analyser, setAnaLyser] = useState(null);
 
-  useLayoutEffect(() => {}, []);
+  useLayoutEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
 
   const { bufferLength, dataArray, datas } = useMemo(() => {
     // if (!audioRef.current) return {};
 
     let audio = new Audio("/m1.mp4");
     // let audio = audioRef.current;
+    // let audio1 = audioRef.current;
+    // let file = new File("/m1.mp4");
+    // audio.src = URL.createObjectURL(file);
+    // audio1.load();
+    // audio1.play();
 
     let context = new AudioContext();
     let analyser = context.createAnalyser();
@@ -150,8 +163,11 @@ const MusicVisualizer = () => {
 
   const startAudio = () => {
     if (audioRef.current) {
+      console.log(audioRef1.current);
       setStart(true);
-      setTimeout(() => audioRef.current.play(), 100);
+      setTimeout(() => {
+        audioRef.current.play();
+      }, 100);
     }
   };
 
@@ -171,39 +187,59 @@ const MusicVisualizer = () => {
     audio.pause();
     setStart(false);
   };
-
+  const sizes = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
   return (
     <>
-      <MusicVisualizerContext.Provider
-        value={{ analyserRef, dataArray, bufferLength, update, datas }}
-      >
-        <button onClick={startAudio}>START</button>
-        <button onClick={pauseAudio}>PAUSE</button>
-        {/* <audio ref={audioRef} /> */}
+      <MusicVisualizerContext.Provider value={{ analyserRef, dataArray, bufferLength, update, datas }}>
+        <Button variant="outlined" onClick={startAudio} style={{ zIndex: 2 }}>
+          START
+        </Button>
+        <Button variant="outlined" onClick={pauseAudio} style={{ zIndex: 2 }}>
+          PAUSE
+        </Button>
+        {/* <audio id="audio" ref={audioRef1} controls>
+          <source src="/m1.mp4" />
+        </audio> */}
+        <audio ref={audioRef1} controls />
         {isStart && (
-          <Canvas
-            style={{ heigh: "100vh", width: "100vw" }}
-            camera={{ position: new Vector3(40, 10, 100) }}
-          >
-            <color attach={"background"} args={["#B8E8FC"]} />
-            <ambientLight intensity={0.3} />
-            <Lines />
+          <div id="canvas">
+            <Canvas style={{ heigh: "100vh", width: "100vw" }}>
+              <color attach={"background"} args={["#0c0972"]} />
+              <ambientLight intensity={0.3} />
+              <Lines />
 
-            <OrbitControls />
-            <axesHelper />
-            <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow={true}>
-              <planeBufferGeometry attach={"geometry"} args={[200, 200, 50, 50]} />
-              <meshLambertMaterial
-                // transparent
-                attach="material"
-                color="#C8FFD4"
-                wireframe={false}
-                side={DoubleSide}
+              <OrbitControls />
+              <axesHelper />
+              <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow={true}>
+                <planeBufferGeometry attach={"geometry"} args={[200, 200, 20, 20]} />
+                <meshLambertMaterial
+                  // transparent
+                  attach="material"
+                  color="#1610d1"
+                  wireframe={true}
+                  side={DoubleSide}
+                />
+              </mesh>
+              {/* <spotLight position={[10, 300, 100]} castShadow angle={0.3} /> */}
+              {/* <gridHelper args={[200, 20]} /> */}
+              <PerspectiveCamera
+                makeDefault
+                zoom={1}
+                fov={75}
+                aspect={sizes.width / sizes.height}
+                position={[180, 70, 280]}
+                rotateY={120}
+                rotateX={Math.PI / 2}
+                near={0.1}
+                far={2000}
               />
-            </mesh>
-            <spotLight position={[10, 300, 100]} castShadow angle={0.3}/>
-            <gridHelper args={[200, 20]} />
-          </Canvas>
+              <Zoom />
+              <Stars />
+            </Canvas>
+          </div>
         )}
       </MusicVisualizerContext.Provider>
     </>

@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import { useBox, Physics, usePlane } from "@react-three/cannon";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
@@ -18,6 +18,7 @@ const Dots = () => {
       position.y += (i % 2) * 0.5;
       position.x += Math.random() * 0.3;
       position.y += Math.random() * 0.3;
+      position.z = -10;
       return position;
     });
 
@@ -73,7 +74,7 @@ const Dots = () => {
   //     }
   //   }, []);
   return (
-    <instancedMesh ref={ref} args={[null, null, 100000]}>
+    <instancedMesh ref={ref} args={[null, null, 10000]}>
       <circleBufferGeometry args={[0.05]} />
       <meshBasicMaterial side={THREE.DoubleSide} />
     </instancedMesh>

@@ -203,7 +203,7 @@ const MusicVisualizer = () => {
         {/* <audio id="audio" ref={audioRef1} controls>
           <source src="/m1.mp4" />
         </audio> */}
-        <audio ref={audioRef1} controls />
+        {/* <audio ref={audioRef1} controls /> */}
         {isStart && (
           <div id="canvas">
             <Canvas style={{ heigh: "100vh", width: "100vw" }}>
